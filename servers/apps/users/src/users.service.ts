@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { LoginDto, RegisterDto } from './dto/user.dto';
@@ -14,9 +14,36 @@ export class UsersService {
   ) {}
 
   // Register user
-  async register(registerDto: RegisterDto) {
-    const { name, email, password } = registerDto;
-    const user = { name, email, password };
+  async register(registerDto: RegisterDto, response: Response) {
+    const { name, email, password, phone_number } = registerDto;
+    const isEmailExist = await this.prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+    const isPhoneNumberExist = await this.prisma.user.findUnique({
+      where: {
+        phone_number,
+      },
+    });
+    if (isEmailExist) {
+      throw new BadRequestException('User already exists with this email');
+    }
+    if (isPhoneNumberExist) {
+      throw new BadRequestException(
+        'User already exists with this phone number',
+      );
+    }
+    const user = await this.prisma.user.create({
+      data: {
+        name,
+        email,
+        password,
+        phone_number,
+      },
+    });
+    console.log('User is', user);
+    // return { user, response };
     return user;
   }
 
