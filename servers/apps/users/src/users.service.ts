@@ -4,7 +4,13 @@ import { JwtService } from '@nestjs/jwt';
 import { LoginDto, RegisterDto } from './dto/user.dto';
 import { Response } from 'express';
 import { PrismaService } from '../../../prisma/prisma.service';
-
+import * as bcrypt from 'bcrypt';
+interface UserData {
+  name: string;
+  email: string;
+  password: string;
+  phone_number: number;
+}
 @Injectable()
 export class UsersService {
   constructor(
@@ -34,17 +40,41 @@ export class UsersService {
         'User already exists with this phone number',
       );
     }
-    const user = await this.prisma.user.create({
-      data: {
-        name,
-        email,
-        password,
-        phone_number,
-      },
-    });
-    console.log('User is', user);
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = {
+      id: 'sdv',
+      role: 'df',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      name,
+      email,
+      password: hashedPassword,
+      phone_number,
+    };
+
+    const activationToken = await this.createActivationToken(user);
+    const activationCode = activationToken.activationCode;
+    console.log('activationCode is', activationCode);
     // return { user, response };
     return user;
+  }
+
+  // Create activation token
+  async createActivationToken(user: UserData) {
+    const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const token = this.jwtService.sign(
+      {
+        user,
+        activationCode,
+      },
+      {
+        secret: this.configService.get<string>('ACTIVATION_SECRET'),
+        expiresIn: '5m',
+      },
+    );
+    return { token, activationCode };
   }
 
   // Login user
